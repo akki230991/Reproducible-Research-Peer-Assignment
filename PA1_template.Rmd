@@ -1,0 +1,159 @@
+---
+title: "Peer Assignment1"
+author: "Ankit Gupta"
+date: "20 December 2015"
+output: html_document
+---
+
+**Reproducible Research: Peer Assignment 1**
+=======================================================================
+This data is for this project are from a personal monitoring deviceused to access personal movement. The device collected the number of steps taken in 5 minutes intervals each from October 1, 2012 through November 30, 2012. The data was downloaded from the course web site: https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip
+(https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip) and the .csv file is now been copied to the working directory or the working direcctory is changed to path where activity data is present.
+
+## Loading and preprocessing the data
+
+```{r Loading and Simulating}
+getwd()
+setwd("C:/Users/Ankit Gupta/Desktop/Data Science/data")
+activity<- read.csv("activity.csv", sep = ",", na.strings = "NA", as.is=TRUE, stringsAsFactors = FALSE, colClasses = c("numeric", "character", "integer"))
+
+```
+
+## Analysis of the total number of steps taken per day
+Using the dplyr package, the dataset was grounped by date, and the total number of steps taken per day was calculated
+
+```{r Loading the package}
+library(dplyr)
+```
+
+Calculating total number of steps
+
+```{r Analysis total number of steps taken per day}
+activity.date<- activity %>%
+    group_by(date) %>%
+    summarize(total.steps = sum(steps, na.rm = TRUE))
+```
+
+Figure 1 shows a histogram of total number of steps taken each day.
+
+```{r histogram}
+hist(activity.date$total.steps, breaks=25, col = "red", main = "Figure 1: Histogram of Total Number of Steps in each Day", xlab = "Total Steps")
+```
+
+The mean and median of the total number of steps taken per day were then calculated, which are given below
+
+```{r mean and median}
+mean.totalsteps<- mean(activity.date$total.steps)
+median.totalsteps<- median(activity.date$total.steps)
+mean.totalsteps
+median.totalsteps
+```
+
+## Analysis of average daily activity pattern
+
+Using the dplyr package, the dataset was grouped by time interval, and the total number and average number of steps taken per interval, averaged across all days, were calculated.
+
+```{r Analysis average daily activity pattern}
+activity.interval<- activity %>%
+    group_by(interval) %>%
+    summarize(total.steps = sum(steps, na.rm = TRUE), average.steps = mean(steps, na.rm = TRUE))
+```
+
+Figure 2 shows a time series plot of the average number of steps taken per interval versus the time interval.
+
+```{r time series plot}
+with(activity.interval, plot(interval, average.steps, type = "l", col = "blue", main = "Figure 2: Average Daily Activity Pattern", xlab = "5-minutes Time Interval", ylab = "Average Number of steps Taken per Interval"))
+```
+
+The 5-minute time interval containing the maximum number of steps was then calculated and is given below.
+
+```{r time interval containing the maximum number of steps}
+maximum.interval<- which.max(activity.interval$total.steps)
+activity.interval[maximum.interval, ]
+```
+
+## Imputing missing values
+
+The activity dataset as collected contains a number of missing values for the steps. The total number of rows containg missing values was claculated and is given below.
+
+```{r Missing values}
+missing.values<- sum(is.na(activity$steps))
+missing.values
+```
+
+These missing values were replaced with values imputed from the mean of that 5-minute time interval using the mutate function from the dplyr package.
+
+```{r replace missing values}
+activity.replaceNA<- activity %>%
+    group_by(interval) %>%
+    mutate(steps= ifelse(is.na(steps), mean(steps, na.rm = TRUE), steps))
+```
+
+The new data set with the imputed missing values is called "activity.replaceNA". A portion of this new dataset is shown below.
+
+```{r activity.replaceNA}
+head(activity.replaceNA)
+tail(activity.replaceNA)
+```
+
+This new dataset was then grouped by date and the total number of steps taken each day was calculated.
+
+```{r grouped by date and the total number of steps}
+activity.date2<- activity.replaceNA %>%
+    group_by(date) %>%
+    summarize(total.steps = sum(steps, na.rm = TRUE))
+```
+
+Figure 3 shows a histogram of total number of steps taken each day with imputed missing values.
+
+```{r histogram imputed value}
+hist(activity.date2$total.steps, breaks=25, col = "red", main = "Figure 3: Histogram of Total Number of Steps in each Day", xlab = "Total Steps")
+```
+
+The mean and median of the steps taken per day for imputed values were then calculated, which are given below
+
+```{r mean and median imputed values}
+mean.totalsteps2<- mean(activity.date2$total.steps)
+median.totalsteps2<- median(activity.date2$total.steps)
+mean.totalsteps2
+median.totalsteps2
+```
+
+A comparision of these results with original results having missing values shows that distribution in the data set with imputed data is more symmetric as compared to one having missing values. the mean and median of total number of steps taken per day are same, but histogram shape in figure 3 is more symmetric.
+
+## Analysis of activity patterns between weekdays and weekends
+
+Using the new dataset with imputed values and the lubricated package, the day of the week was assigned to each date, and then a new factor variable created with two levels, "weekday" and "weekend", indicating whether a given date is a weekday or a weekend day.
+
+```{r generating weekdays and weekends variables}
+
+library(lubridate)
+activity.replaceNA$day<- wday(activity.replaceNA$date, label = TRUE)
+activity.replaceNA$daytype<- activity.replaceNA$day
+levels(activity.replaceNA$daytype)<- list(
+    weekday = c("Mon", "Tues", "Wed", "Thurs", "Fri"),
+    weekend = c("Sun", "Sat"))
+```
+
+A portion of the modified data set is given below.
+
+```{r activity.replaceNA weekday weekend}
+head(activity.replaceNA)
+```
+
+The dataset was then grouped by this new factor variable, daytype, and the time interval, and the total and average number of steps per interval, averaged across days by daytype, were calculated.
+
+```{r Grouping data}
+activity.typeday<- activity.replaceNA %>%
+    group_by(daytype, interval) %>%
+    summarize(total.steps=sum(steps, na.rm =TRUE), average.steps = mean(steps, na.rm = TRUE))
+```
+
+Figure 4 shows a panel plot of the time series of the average number of steps taken, averages across all weekday days or weekend days, versus the time interval.
+
+```{r Time series across weekday and weekend}
+library(lattice)
+xyplot(average.steps~interval|daytype, data = activity.typeday, type = 'l', layout = c(1,2), main = "Figure 4: Average Daily Activity Pattern by Type of Day", ylab = "Average Number of steps taken per interval", xlab = "5-minute time interval") 
+```
+
+From the graph it can be seen that weekday pattern was non uniform with activities being noted between 5 AM and 10 PM. Activity began at 5 AM but then a peak was seen at 9 AM with less activity throughout the week. Whereas if we talk about weekend then it can be seen that a uniform data distribution can be seen in this as compared to weekday. But this is true when we have imuted the missing values with mean imputed across all days for a given time interval. Thus here a need of rigorous analysis is required across weekday and weekend.
